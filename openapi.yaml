@@ -1,0 +1,474 @@
+openapi: 3.0.3
+info:
+  title: Courier Management API
+  description: API for managing couriers with comprehensive support for listing, searching, filtering, sorting, pagination, creation, updating, and deletion.
+  version: 1.0.0
+servers:
+  - url: "http:\/\/127.0.0.1:8000"
+    description: Local Development Server
+tags:
+  - name: Couriers
+    description: Courier management endpoints
+paths:
+  /api/couriers:
+    get:
+      tags:
+        - Couriers
+      summary: List couriers with search, level filter, sorting, and pagination
+      description: "Retrieve a paginated list of couriers. Supports multi-term case-insensitive search by name, filtering by multiple levels (comma-separated), sorting by name or registration time, and configurable page size."
+      operationId: getCouriers
+      parameters:
+        - name: search
+          in: query
+          description: "Search keyword for courier name. Multi-term space-separated keywords match case-insensitively in any order."
+          required: false
+          schema:
+            type: string
+            maxLength: 150
+          example: Budi Agung
+        - name: level
+          in: query
+          description: "Comma-separated list of courier levels (1 through 5)."
+          required: false
+          schema:
+            type: string
+          example: 2,3
+        - name: sort_by
+          in: query
+          description: Sort order. Omit for name ascending (`name ASC, id ASC`); set to `registered_at` for newest registration first (`registered_at DESC, id ASC`).
+          required: false
+          schema:
+            type: string
+            enum:
+              - registered_at
+          example: registered_at
+        - name: per_page
+          in: query
+          description: Number of results per page (between 1 and 100, default 10).
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          example: 10
+        - name: page
+          in: query
+          description: "Page number (1-based index)."
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        200:
+          description: A paginated list of couriers
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/CourierPaginationResponse"
+        422:
+          description: Validation error (invalid parameters or unsupported query parameter)
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/ValidationErrorResponse"
+    post:
+      tags:
+        - Couriers
+      summary: Create a new courier
+      description: Create a new courier record. If `registered_at` is omitted or null, the current server time is used as default. Unexpected fields are rejected.
+      operationId: createCourier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#\/components\/schemas\/StoreCourierInput"
+      responses:
+        201:
+          description: Courier created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/CourierSingleResponse"
+        422:
+          description: Validation error (missing required fields, duplicate email, invalid level, or extra fields)
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/ValidationErrorResponse"
+  /api/couriers/{id}:
+    get:
+      tags:
+        - Couriers
+      summary: Get a courier by ID
+      description: Retrieve details of a single courier by identifier.
+      operationId: getCourierById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the courier
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: Courier found
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/CourierSingleResponse"
+        404:
+          description: Courier not found
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/NotFoundResponse"
+    put:
+      tags:
+        - Couriers
+      summary: Full update of a courier
+      description: Replace courier information. `name`, `phone`, and `level` are required. `email`, `address`, and `registered_at` are optional or nullable.
+      operationId: updateCourierPut
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the courier
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#\/components\/schemas\/PutCourierInput"
+      responses:
+        200:
+          description: Courier updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/CourierSingleResponse"
+        404:
+          description: Courier not found
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/NotFoundResponse"
+        422:
+          description: Validation error (missing required fields, duplicate email, extra fields)
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/ValidationErrorResponse"
+    patch:
+      tags:
+        - Couriers
+      summary: Partial update of a courier
+      description: Partially update courier fields. Omitted fields are preserved without change. To clear `registered_at`, pass `null`.
+      operationId: updateCourierPatch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the courier
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#\/components\/schemas\/PatchCourierInput"
+      responses:
+        200:
+          description: Courier updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/CourierSingleResponse"
+        404:
+          description: Courier not found
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/NotFoundResponse"
+        422:
+          description: Validation error (invalid fields, duplicate email of another courier, extra fields)
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/ValidationErrorResponse"
+    delete:
+      tags:
+        - Couriers
+      summary: Delete a courier
+      description: Permanently delete a courier record.
+      operationId: deleteCourier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the courier
+          schema:
+            type: integer
+          example: 1
+      responses:
+        204:
+          description: Courier deleted successfully (No Content)
+        404:
+          description: Courier not found
+          content:
+            application/json:
+              schema:
+                $ref: "#\/components\/schemas\/NotFoundResponse"
+components:
+  schemas:
+    Courier:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 150
+          example: Budi Agung
+        phone:
+          type: string
+          maxLength: 30
+          example: 081234567890
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 255
+          example: "budi@example.com"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Jl. Sudirman No. 10, Jakarta Pusat
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 2
+        registered_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          example: "2026-10-14T00:00:00.000000Z"
+        created_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          example: "2026-10-14T07:00:00.000000Z"
+        updated_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          example: "2026-10-14T07:00:00.000000Z"
+      required:
+        - id
+        - name
+        - phone
+        - level
+    StoreCourierInput:
+      type: object
+      required:
+        - name
+        - phone
+        - level
+      properties:
+        name:
+          type: string
+          maxLength: 150
+          example: Budi Agung
+        phone:
+          type: string
+          maxLength: 30
+          example: 081234567890
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 255
+          example: "budi@example.com"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Jl. Sudirman No. 10, Jakarta Pusat
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 2
+        registered_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          description: Optional registration datetime. Defaults to current timestamp if omitted or null.
+          example: "2026-10-14 09:00:00"
+    PutCourierInput:
+      type: object
+      required:
+        - name
+        - phone
+        - level
+      properties:
+        name:
+          type: string
+          maxLength: 150
+          example: Budi Agung Pratama
+        phone:
+          type: string
+          maxLength: 30
+          example: 081234567899
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 255
+          example: "budi.agung@example.com"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Jl. MH Thamrin No. 5, Jakarta Pusat
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 3
+        registered_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          example: "2026-10-14 10:00:00"
+    PatchCourierInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+          example: Budi Agung Santoso
+        phone:
+          type: string
+          maxLength: 30
+          example: 081234567890
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 255
+          example: "budi.santoso@example.com"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Jl. Gatot Subroto No. 8, Jakarta Selatan
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        registered_at:
+          type: string
+          format: "date-time"
+          nullable: true
+          description: Pass ISO date string, standard date format, or null to clear.
+          example: "2026-10-15 08:30:00"
+    CourierSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#\/components\/schemas\/Courier"
+      required:
+        - data
+    CourierPaginationResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#\/components\/schemas\/Courier"
+        links:
+          type: object
+          properties:
+            first:
+              type: string
+              nullable: true
+              example: "http:\/\/127.0.0.1:8000\/api\/couriers?page=1"
+            last:
+              type: string
+              nullable: true
+              example: "http:\/\/127.0.0.1:8000\/api\/couriers?page=3"
+            prev:
+              type: string
+              nullable: true
+              example: null
+            next:
+              type: string
+              nullable: true
+              example: "http:\/\/127.0.0.1:8000\/api\/couriers?page=2"
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            from:
+              type: integer
+              nullable: true
+              example: 1
+            last_page:
+              type: integer
+              example: 3
+            per_page:
+              type: integer
+              example: 10
+            to:
+              type: integer
+              nullable: true
+              example: 10
+            total:
+              type: integer
+              example: 25
+      required:
+        - data
+        - links
+        - meta
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The level field must be between 1 and 5.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            level:
+              - The level field must be between 1 and 5.
+      required:
+        - message
+        - errors
+    NotFoundResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Record not found.
+      required:
+        - message
